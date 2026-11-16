@@ -84,27 +84,45 @@ Si todavía no hay archivo `.env`, la app arranca en **modo demo** con datos de 
 
 ## Generar el APK (EAS Build)
 
-```bash
-npm install -g eas-cli
-eas login
-eas init
-```
-
-El archivo `.env` no se sube a los servidores de Expo, así que las variables se cargan una vez en el entorno *preview* de EAS:
+El proyecto ya está vinculado a EAS (`@pizza299/konys-reservas-app`, ver `extra.eas.projectId` en `app.json`) y las variables ya están cargadas en el entorno *preview*. Para generar un APK nuevo basta con:
 
 ```bash
-eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_URL --value "https://xxxx.supabase.co" --visibility plaintext
-eas env:create --environment preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "tu-clave-publica" --visibility plaintext
-eas env:create --environment preview --name EXPO_PUBLIC_ADMIN_PIN --value "1234" --visibility plaintext
+npx eas-cli@latest login
+npx eas-cli@latest build -p android --profile preview
 ```
 
-Y luego:
+Al terminar, EAS entrega un enlace para descargar e instalar el APK (también aparece en expo.dev → proyecto → Builds).
+
+Si se cambian las credenciales de Supabase, hay que actualizarlas en EAS, porque el archivo `.env` no se sube a los servidores de Expo:
 
 ```bash
-eas build -p android --profile preview
+npx eas-cli@latest env:set preview --name EXPO_PUBLIC_SUPABASE_URL --value "https://xxxx.supabase.co" --visibility plaintext
+npx eas-cli@latest env:set preview --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "tu-clave-publica" --visibility plaintext
+npx eas-cli@latest env:set preview --name EXPO_PUBLIC_ADMIN_PIN --value "1234" --visibility sensitive
 ```
 
-Al terminar, EAS entrega un enlace para descargar e instalar el APK.
+---
+
+## Pruebas realizadas
+
+Pruebas del 16 de noviembre de 2026 con la app conectada a Supabase (navegador, pantallas de 360 px, 375 px y tablet):
+
+| Caso | Resultado |
+| --- | --- |
+| Reserva completa (mesa → fecha → horario → datos → confirmación con código) | ✅ Se guarda en Supabase (`KP-0010`) |
+| Elegir un horario ocupado | ✅ El horario aparece en gris y avisa "ya está reservado" |
+| Más personas que la capacidad de la mesa | ✅ Avisa el máximo permitido |
+| Nombre vacío o muy corto / teléfono inválido | ✅ Muestra el error y no guarda |
+| Dos clientes reservan el mismo horario a la vez | ✅ Supabase lo rechaza (índice único `reservas_sin_doble_reserva`) |
+| Reserva con más personas enviada directo a la base | ✅ Rechazada por el trigger de capacidad |
+| Cliente intentando crear una reserva "completada" | ✅ Rechazada por RLS |
+| Acceso admin con PIN incorrecto / correcto | ✅ Avisa / abre el panel |
+| Cancelar una reserva desde el panel | ✅ Cambia a "cancelada" en Supabase y el horario queda libre |
+| Desactivar una mesa | ✅ Desaparece para los clientes; al activarla vuelve |
+| Sin conexión con Supabase | ✅ Mensaje "Sin conexión" con botón *Reintentar* |
+| Pantallas de 360 px, 375 px y tablet | ✅ Sin desbordes; en tablet la cuadrícula pasa a 3 columnas |
+
+Pendiente: repetir el flujo en un celular real con Expo Go y con el APK instalado.
 
 ---
 
