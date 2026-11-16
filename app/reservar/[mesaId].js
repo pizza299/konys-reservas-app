@@ -1,40 +1,30 @@
-// Pantalla "Reservar mesa" (RF-02 a RF-05, caso de uso CU-02).
-// Fecha → horario (almuerzo / noche) → personas y datos → confirmar.
+// Pantalla "Reservar mesa" (RF-02 a RF-04, caso de uso CU-02) · Paso 2 de 3.
+// Fecha → horario (almuerzo / noche) → personas → Continuar.
+// Los datos del cliente se piden en el paso 3 (reservar/datos.js).
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import BarraSuperior from '../../components/BarraSuperior';
 import SelectorFecha from '../../components/SelectorFecha';
 import SlotButton from '../../components/SlotButton';
 import Boton from '../../components/ui/Boton';
-import Campo from '../../components/ui/Campo';
 import { AvisoError, Cargando, ErrorEstado, Vacio } from '../../components/ui/Estados';
 import { useDatos } from '../../hooks/useDatos';
 import { obtenerMesa } from '../../services/mesas';
 import { obtenerHorarios } from '../../services/horarios';
 import {
-  crearReserva,
   fechaHabilitada,
   marcarDisponibilidad,
   obtenerReservas,
   primeraFechaHabilitada,
   slotsDeFecha,
-  validarDatosCliente,
 } from '../../services/reservas';
 import { ANCHO_MAX, colores, radios, TACTIL_MIN } from '../../constants/colors';
 import { ETIQUETA_ZONA, JORNADAS } from '../../constants/config';
 import { aMinutos, fechaCorta } from '../../utils/fechas';
-import { codigoReserva, pluralizar } from '../../utils/formato';
+import { pluralizar } from '../../utils/formato';
 
 export default function ReservarMesa() {
   const { mesaId } = useLocalSearchParams();
@@ -51,10 +41,7 @@ export default function ReservarMesa() {
   const [fechaElegida, setFecha] = useState(null);
   const [slotElegido, setSlot] = useState(null);
   const [personasElegidas, setPersonas] = useState(2);
-  const [nombre, setNombre] = useState('');
-  const [telefono, setTelefono] = useState('');
   const [mensaje, setMensaje] = useState(null);
-  const [enviando, setEnviando] = useState(false);
 
   // Mientras el cliente no elija, se usa el primer día con horarios disponibles.
   const primeraFecha = useMemo(() => (horarios ? primeraFechaHabilitada(horarios) : null), [horarios]);
@@ -132,42 +119,23 @@ export default function ReservarMesa() {
     setPersonas(n);
   };
 
-  const confirmar = async () => {
+  // Paso 3: el cliente escribe sus datos en otra pantalla.
+  const continuar = () => {
     if (!slot) {
       setMensaje('Elige un horario para tu reserva.');
       return;
     }
-    const error = validarDatosCliente({ nombre, telefono, personas, capacidad: mesa.capacidad });
-    if (error) {
-      setMensaje(error);
-      return;
-    }
-    setEnviando(true);
     setMensaje(null);
-    try {
-      const { reserva } = await crearReserva({ mesaId: mesa.id, fecha, slot, nombre, telefono, personas });
-      router.replace({
-        pathname: '/confirmacion',
-        params: {
-          nombre: reserva.cliente_nombre,
-          fecha: reserva.fecha,
-          inicio: reserva.hora_inicio,
-          fin: reserva.hora_fin,
-          mesa: mesa.nombre,
-          zona: ETIQUETA_ZONA[mesa.zona],
-          personas: String(reserva.num_personas),
-          codigo: codigoReserva(reserva.id),
-        },
-      });
-    } catch (e) {
-      setMensaje(e.message);
-      if (e.codigo === 'DUPLICADO') {
-        setSlot(null);
-        reservasDia.recargarSilencioso();
-      }
-    } finally {
-      setEnviando(false);
-    }
+    router.push({
+      pathname: '/reservar/datos',
+      params: {
+        mesaId: String(mesa.id),
+        fecha,
+        inicio: slot.inicio,
+        fin: slot.fin,
+        personas: String(personas),
+      },
+    });
   };
 
   const botonesPersonas = Array.from({ length: Math.min(Math.max(6, mesa.capacidad), 12) }, (_, i) => i + 1);
@@ -182,15 +150,8 @@ export default function ReservarMesa() {
 
   return (
     <SafeAreaView style={styles.pantalla} edges={['top']}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.contenido}
-          keyboardShouldPersistTaps="handled"
-        >
+      <View style={styles.flex}>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.contenido}>
           <BarraSuperior onAtras={() => router.back()} paso="Paso 2 de 3" />
 
           <View>
@@ -302,30 +263,6 @@ export default function ReservarMesa() {
             </ScrollView>
           </View>
 
-          <View style={styles.formulario}>
-            <Campo
-              tipo="linea"
-              placeholder="Nombre completo"
-              value={nombre}
-              onChangeText={setNombre}
-              autoCapitalize="words"
-              autoComplete="name"
-              textContentType="name"
-              maxLength={80}
-              returnKeyType="next"
-            />
-            <Campo
-              tipo="linea"
-              placeholder="Teléfono (opcional)"
-              value={telefono}
-              onChangeText={setTelefono}
-              keyboardType="phone-pad"
-              autoComplete="tel"
-              textContentType="telephoneNumber"
-              maxLength={20}
-            />
-          </View>
-
           {mensaje ? (
             <View style={styles.mensaje} accessibilityLiveRegion="polite">
               <Ionicons name="alert-circle" size={18} color={colores.error} />
@@ -338,37 +275,15 @@ export default function ReservarMesa() {
           <Text style={styles.resumen} numberOfLines={1}>
             {resumen}
           </Text>
-          <Boton
-            titulo="Confirmar reserva"
-            onPress={confirmar}
-            cargando={enviando}
-            deshabilitado={!slot || !nombre.trim()}
-          />
+          <Boton titulo="Continuar" icono="arrow-forward" onPress={continuar} deshabilitado={!slot} />
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
 
 function duracionSlot(s) {
   return aMinutos(s.fin) - aMinutos(s.inicio);
-}
-
-function BarraSuperior({ onAtras, paso }) {
-  return (
-    <View style={styles.barra}>
-      <Pressable
-        onPress={onAtras}
-        style={styles.atras}
-        accessibilityRole="button"
-        accessibilityLabel="Volver"
-        hitSlop={8}
-      >
-        <Ionicons name="arrow-back" size={22} color={colores.texto} />
-      </Pressable>
-      {paso ? <Text style={styles.paso}>{paso}</Text> : null}
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({
@@ -386,25 +301,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 24,
     gap: 20,
-  },
-  barra: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 0,
-    minHeight: TACTIL_MIN,
-  },
-  atras: {
-    width: TACTIL_MIN,
-    height: TACTIL_MIN,
-    marginLeft: -10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  paso: {
-    fontSize: 12,
-    color: colores.textoSuave,
-    fontWeight: '600',
   },
   titulo: {
     fontSize: 24,
@@ -516,9 +412,6 @@ const styles = StyleSheet.create({
   },
   personaTextoExcede: {
     color: colores.bordeFuerte,
-  },
-  formulario: {
-    gap: 6,
   },
   mensaje: {
     flexDirection: 'row',

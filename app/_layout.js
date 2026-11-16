@@ -1,5 +1,5 @@
 // Layout raíz: navegación en pila sobre las pestañas.
-// (tabs) → reservar/[mesaId] → confirmacion · y la carta del panel admin.
+// (tabs) → reservar/[mesaId] → reservar/datos → confirmacion · y la carta del panel admin.
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ export default function LayoutRaiz() {
         >
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="reservar/[mesaId]" />
+          <Stack.Screen name="reservar/datos" />
           <Stack.Screen name="confirmacion" options={{ gestureEnabled: false }} />
           <Stack.Screen name="admin-carta" />
         </Stack>

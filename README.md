@@ -12,7 +12,8 @@ Hecha con **React Native + Expo (SDK 58)**, **Expo Router** y **Supabase**.
 
 **Cliente (sin registro)**
 - **Inicio:** portada de Konys, horarios de atención (lunes a sábado 11:30 a. m. – 2:00 p. m. y 4:30 – 11:00 p. m.; domingo 4:30 – 11:00 p. m.), dirección, botón *Reservar mesa* y tarjetas de mesas (nombre, zona, capacidad y estado de hoy). Filtro *Todas · Terraza · Salón*.
-- **Reservar mesa:** selector de fecha por semanas (solo días con atención), horarios divididos en *Almuerzo* y *Noche* (libres en blanco, ocupados en gris, elegido en oscuro), número de personas limitado por la capacidad de la mesa, nombre y teléfono opcional.
+- **Reservar mesa:** selector de fecha por semanas (solo días con atención), horarios divididos en *Almuerzo* y *Noche* (libres en blanco, ocupados en gris, elegido en oscuro) y número de personas limitado por la capacidad de la mesa. El botón *Continuar* se activa al elegir un horario.
+- **Tus datos (paso 3):** resumen de la reserva (mesa, fecha, hora y personas, con opción *Cambiar*), nombre completo y teléfono opcional, y botón *Confirmar reserva*.
 - **Confirmación:** comprobante con fecha, hora, mesa, personas y código (`KP-0172`).
 - **Carta:** la carta real de Konys por categoría (Pizzas en cono, Combos, Fries, Granizadas y Bebidas) con foto y precio en COP. Los platos en descuento muestran el porcentaje y el precio anterior tachado, y se agrupan en *Promos*. Los platos ocultos no se muestran.
 
@@ -137,7 +138,8 @@ konys-reservas-app/
 │   │   ├── index.js          # Inicio (mesas)
 │   │   ├── carta.js          # Carta digital
 │   │   └── admin.js          # PIN o panel de administración
-│   ├── reservar/[mesaId].js  # Reservar mesa
+│   ├── reservar/[mesaId].js  # Reservar mesa (fecha, horario y personas)
+│   ├── reservar/datos.js     # Datos del cliente y confirmar
 │   ├── confirmacion.js       # Comprobante de la reserva
 │   └── admin-carta.js        # Gestión de la carta (admin)
 ├── components/               # MesaCard, SlotButton, PlatoItem, SelectorFecha…
