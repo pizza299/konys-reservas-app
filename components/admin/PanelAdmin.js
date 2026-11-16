@@ -1,4 +1,4 @@
-// Panel de administración: pestañas Mesas, Horarios y Reservas.
+// Panel de administración: pestañas Mesas, Horarios, Reservas y Pedidos (cocina).
 // La gestión de la carta se abre con el botón "Carta" de la barra superior.
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,6 +9,7 @@ import BarraPildora from '../BarraPildora';
 import AdminMesas from './AdminMesas';
 import AdminHorarios from './AdminHorarios';
 import AdminReservas from './AdminReservas';
+import AdminPedidos from './AdminPedidos';
 import { useAdminAuth } from '../../context/AdminAuth';
 import { ANCHO_MAX, colores, radios, TACTIL_MIN } from '../../constants/colors';
 
@@ -16,6 +17,7 @@ const SECCIONES = [
   { clave: 'mesas', etiqueta: 'Mesas', icono: 'grid' },
   { clave: 'horarios', etiqueta: 'Horarios', icono: 'time' },
   { clave: 'reservas', etiqueta: 'Reservas', icono: 'calendar' },
+  { clave: 'pedidos', etiqueta: 'Pedidos', icono: 'receipt' },
 ];
 
 export default function PanelAdmin() {
@@ -53,6 +55,7 @@ export default function PanelAdmin() {
         {seccion === 'mesas' ? <AdminMesas /> : null}
         {seccion === 'horarios' ? <AdminHorarios /> : null}
         {seccion === 'reservas' ? <AdminReservas /> : null}
+        {seccion === 'pedidos' ? <AdminPedidos /> : null}
       </View>
 
       <BarraPildora items={SECCIONES} activo={seccion} onSeleccionar={setSeccion} />

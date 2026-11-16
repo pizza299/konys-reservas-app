@@ -16,6 +16,7 @@ Hecha con **React Native + Expo (SDK 58)**, **Expo Router** y **Supabase**.
 - **Tus datos (paso 3):** resumen de la reserva (mesa, fecha, hora y personas, con opción *Cambiar*), nombre completo y teléfono opcional, y botón *Confirmar reserva*.
 - **Confirmación:** comprobante con fecha, hora, mesa, personas y código (`KP-0172`).
 - **Carta:** la carta real de Konys por categoría (Pizzas en cono, Combos, Fries, Granizadas y Bebidas) con foto y precio en COP. Los platos en descuento muestran el porcentaje y el precio anterior tachado, y se agrupan en *Promos*. Los platos ocultos no se muestran.
+- **Pedir a cocina:** al tocar un plato se abre su detalle con cantidad, indicaciones para la cocina (por ejemplo, "sin cebolla") y el botón *Agregar al pedido*. Una barra inferior muestra cuántos productos lleva y el total; desde ahí se abre **Tu pedido**, donde se ajustan cantidades, se elige la mesa y el nombre, y se pulsa *Enviar a cocina*. El comprobante muestra el número de pedido (`P-0012`).
 
 **Administrador (protegido con PIN)**
 - **Acceso con PIN** de 4 dígitos; si es incorrecto muestra un aviso y tras 5 intentos bloquea 30 s. La sesión se recuerda 12 horas (AsyncStorage).
@@ -23,6 +24,7 @@ Hecha con **React Native + Expo (SDK 58)**, **Expo Router** y **Supabase**.
 - **Mesas:** listado con interruptor *Activa / Inactiva*, editar, borrar y botón **+** para crear.
 - **Horarios:** los 7 días con sus jornadas de almuerzo y noche (editables o cerradas) y la duración de cada reserva.
 - **Carta (admin):** agregar, editar, ocultar o borrar platos (botón *Carta* del panel). Para poner un plato en promoción se escribe el *precio antes del descuento*.
+- **Pedidos (cocina):** los pedidos que llegan desde la carta, con mesa, cliente, platos e indicaciones. Cada pedido avanza con un botón: *Nuevo → En preparación → Listo → Entregado* (o se cancela mientras es nuevo). Filtros *En curso · Historial*; la lista se actualiza sola cada 15 segundos.
 
 **Reglas importantes**
 - No se puede reservar un horario ocupado ni superar la capacidad de la mesa.
@@ -62,7 +64,7 @@ Si todavía no hay archivo `.env`, la app arranca en **modo demo** con datos de 
 ### Conectar con Supabase
 
 1. Crea un proyecto gratis en [supabase.com](https://supabase.com).
-2. Abre **SQL Editor → New query**, pega el contenido de [`supabase/schema.sql`](supabase/schema.sql) y pulsa **Run**. Crea las 4 tablas, las reglas de seguridad (RLS), las validaciones y los datos de ejemplo.
+2. Abre **SQL Editor → New query**, pega el contenido de [`supabase/schema.sql`](supabase/schema.sql) y pulsa **Run**. Crea las 5 tablas, las reglas de seguridad (RLS), las validaciones y los datos de ejemplo.
 3. Copia `.env.example` como `.env` y completa la URL y la clave pública (*anon* o *publishable*) de **Project Settings → API**:
 
    ```
@@ -80,6 +82,8 @@ Si todavía no hay archivo `.env`, la app arranca en **modo demo** con datos de 
 **Fotos:** las fotos de los platos vienen dentro de la app (`assets/platos`); en la base de datos se guardan como `local:<nombre>`. Los platos que aún no tienen foto propia usan la foto general de Konys (`konys-menu.jpg`). Para cambiar o agregar fotos, sigue las instrucciones de `constants/fotosLocales.js`. Las mesas usan fotos de prueba de [Unsplash](https://unsplash.com) (uso libre) que se cargan desde internet. Para cambiar cualquier foto, edita la mesa o el plato en el panel y pega un enlace `https://…` en el campo *Foto*.
 
 > Si ya habías ejecutado una versión anterior de `schema.sql`, borra las tablas (o crea un proyecto nuevo) y vuelve a ejecutarlo para cargar la carta, las categorías y los horarios nuevos.
+>
+> **Pedidos a cocina:** si tu base de datos se creó antes de existir los pedidos, vuelve a ejecutar `schema.sql` completo (no duplica datos) para crear la tabla `pedidos` y sus permisos. Sin esa tabla, el botón *Enviar a cocina* muestra un error.
 
 ---
 
@@ -123,7 +127,7 @@ Pruebas del 16 de noviembre de 2026 con la app conectada a Supabase (navegador, 
 | Sin conexión con Supabase | ✅ Mensaje "Sin conexión" con botón *Reintentar* |
 | Pantallas de 360 px, 375 px y tablet | ✅ Sin desbordes; en tablet la cuadrícula pasa a 3 columnas |
 
-Pendiente: repetir el flujo en un celular real con Expo Go y con el APK instalado.
+Pendiente: repetir el flujo en un celular real con Expo Go y con el APK instalado. Los pedidos a cocina (agregar desde la carta, enviar, y avanzar el estado en el panel) se probaron en modo demo; falta probarlos con Supabase.
 
 ---
 
@@ -141,6 +145,8 @@ konys-reservas-app/
 │   ├── reservar/[mesaId].js  # Reservar mesa (fecha, horario y personas)
 │   ├── reservar/datos.js     # Datos del cliente y confirmar
 │   ├── confirmacion.js       # Comprobante de la reserva
+│   ├── pedido.js             # Tu pedido: mesa, nombre y "Enviar a cocina"
+│   ├── pedido-enviado.js     # Comprobante del pedido
 │   └── admin-carta.js        # Gestión de la carta (admin)
 ├── components/               # MesaCard, SlotButton, PlatoItem, SelectorFecha…
 │   ├── admin/                # Panel, PIN, mesas, horarios, reservas y formularios
@@ -150,8 +156,10 @@ konys-reservas-app/
 │   ├── db.js                 # Elige Supabase o modo demo; tiempo máximo y errores
 │   ├── reservas.js           # Slots, disponibilidad y creación de reservas
 │   ├── mesas.js · horarios.js · platos.js
+│   ├── pedidos.js            # Pedidos a cocina (crear y cambiar estado)
 │   └── localDb.js · seed.js  # Modo demo
 ├── context/AdminAuth.js      # Sesión del administrador (PIN)
+├── context/Pedido.js         # Pedido en curso del cliente (carrito)
 ├── hooks/useDatos.js         # Carga de datos con recarga al volver a la pantalla
 ├── constants/                # Colores y configuración
 ├── utils/                    # Fechas, formatos y diálogos
@@ -172,6 +180,7 @@ konys-reservas-app/
 | `horarios` | id, dia_semana, jornada (`almuerzo`/`noche`), hora_inicio, hora_fin, duracion_slot, activo |
 | `reservas` | id, mesa_id, cliente_nombre, cliente_contacto, num_personas, fecha, hora_inicio, hora_fin, estado (`confirmada`/`cancelada`/`completada`), creado_en |
 | `platos` | id, nombre, categoria (`pizzas`/`combos`/`fries`/`granizadas`/`bebidas`), descripcion, precio (COP), precio_anterior (si tiene descuento), disponible, foto_url, creado_en |
+| `pedidos` | id, mesa_id, cliente_nombre, items (lista JSON con plato_id, nombre, precio, cantidad y nota), total (COP), estado (`pendiente`/`preparando`/`listo`/`entregado`/`cancelado`), creado_en |
 
 > Seguridad: el panel se protege con un PIN dentro de la app (alcance del proyecto), por eso las políticas RLS permiten escribir con la clave pública. En producción se recomienda usar Supabase Auth y limitar la escritura a usuarios autenticados.
 

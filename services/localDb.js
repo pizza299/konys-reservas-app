@@ -18,6 +18,8 @@ async function cargar() {
       cache = crearDatosDemo();
       await guardar();
     }
+    // Los datos guardados antes de existir los pedidos no traen esa tabla.
+    if (!Array.isArray(cache.pedidos)) cache.pedidos = [];
   } catch {
     cache = crearDatosDemo();
   }
@@ -120,9 +122,10 @@ export const localDb = {
   async eliminar(tabla, id) {
     const db = await cargar();
     db[tabla] = db[tabla].filter((f) => f.id !== id);
-    // Igual que "on delete cascade" en Supabase.
+    // Igual que "on delete cascade" (reservas) y "on delete set null" (pedidos) en Supabase.
     if (tabla === 'mesas') {
       db.reservas = db.reservas.filter((r) => r.mesa_id !== id);
+      db.pedidos = db.pedidos.map((p) => (p.mesa_id === id ? { ...p, mesa_id: null } : p));
     }
     await guardar();
   },

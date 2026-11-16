@@ -68,6 +68,28 @@ create table if not exists public.platos (
   check (precio_anterior is null or precio_anterior > precio)
 );
 
+-- ---------- 10.5 Pedidos (órdenes a cocina) ----------
+-- El cliente pide desde la carta y la cocina los ve en el panel (sección Pedidos).
+-- items: lista de platos con el precio del momento:
+--   [{"plato_id": 3, "nombre": "Konys bucara", "precio": 30900, "cantidad": 2, "nota": "sin cebolla"}]
+-- Estados: pendiente → preparando → listo → entregado (o cancelado).
+create table if not exists public.pedidos (
+  id              bigint generated always as identity primary key,
+  mesa_id         bigint references public.mesas (id) on delete set null,
+  cliente_nombre  text not null check (char_length(cliente_nombre) between 2 and 80),
+  items           jsonb not null check (
+                    case when jsonb_typeof(items) = 'array'
+                         then jsonb_array_length(items) between 1 and 30
+                         else false end
+                  ),
+  total           int  not null check (total > 0),
+  estado          text not null default 'pendiente'
+                  check (estado in ('pendiente', 'preparando', 'listo', 'entregado', 'cancelado')),
+  creado_en       timestamptz not null default now()
+);
+
+create index if not exists pedidos_estado_idx on public.pedidos (estado, creado_en);
+
 -- ---------- Validación de reservas en el servidor ----------
 -- Revisa que la mesa exista, esté activa y que no se supere su capacidad.
 create or replace function public.validar_reserva()
@@ -98,12 +120,13 @@ create trigger reservas_validar
 
 -- ---------- Permisos y Row Level Security (RLS) ----------
 grant usage on schema public to anon, authenticated;
-grant select, insert, update, delete on public.mesas, public.horarios, public.reservas, public.platos to anon, authenticated;
+grant select, insert, update, delete on public.mesas, public.horarios, public.reservas, public.platos, public.pedidos to anon, authenticated;
 
 alter table public.mesas    enable row level security;
 alter table public.horarios enable row level security;
 alter table public.reservas enable row level security;
 alter table public.platos   enable row level security;
+alter table public.pedidos  enable row level security;
 
 -- Lectura pública: el cliente ve mesas, horarios, disponibilidad y la carta.
 drop policy if exists "lectura publica" on public.mesas;
@@ -132,6 +155,15 @@ drop policy if exists "admin modifica" on public.platos;
 create policy "admin modifica" on public.platos for all to anon, authenticated using (true) with check (true);
 drop policy if exists "admin actualiza reservas" on public.reservas;
 create policy "admin actualiza reservas" on public.reservas for update to anon, authenticated using (true) with check (true);
+
+-- Pedidos: el cliente los crea (siempre 'pendiente') y la cocina los lee y cambia de estado.
+drop policy if exists "lectura publica" on public.pedidos;
+create policy "lectura publica" on public.pedidos for select to anon, authenticated using (true);
+drop policy if exists "crear pedidos" on public.pedidos;
+create policy "crear pedidos" on public.pedidos for insert to anon, authenticated
+  with check (estado = 'pendiente');
+drop policy if exists "cocina actualiza pedidos" on public.pedidos;
+create policy "cocina actualiza pedidos" on public.pedidos for update to anon, authenticated using (true) with check (true);
 
 -- =====================================================================
 -- Datos iniciales (solo se insertan si las tablas están vacías)

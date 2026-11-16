@@ -121,7 +121,7 @@ export function crearDatosDemo() {
     });
   });
 
-  return { version: VERSION_DEMO, mesas, horarios, platos, reservas };
+  return { version: VERSION_DEMO, mesas, horarios, platos, reservas, pedidos: [] };
 }
 
 /** true si los datos guardados son de una versión anterior y hay que renovarlos. */

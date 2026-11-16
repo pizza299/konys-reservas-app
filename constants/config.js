@@ -81,3 +81,26 @@ export const ESTADOS_RESERVA = {
 };
 
 export const DURACIONES_SLOT = [30, 45, 60, 90, 120];
+
+// Pedidos a cocina: estados en el orden en que avanzan.
+export const ESTADOS_PEDIDO = {
+  pendiente: 'Nuevo',
+  preparando: 'En preparación',
+  listo: 'Listo',
+  entregado: 'Entregado',
+  cancelado: 'Cancelado',
+};
+
+// Siguiente paso de cada estado (lo que hace el botón principal en la cocina).
+export const SIGUIENTE_ESTADO_PEDIDO = {
+  pendiente: { estado: 'preparando', accion: 'Empezar a preparar', icono: 'flame-outline' },
+  preparando: { estado: 'listo', accion: 'Marcar como listo', icono: 'checkmark' },
+  listo: { estado: 'entregado', accion: 'Marcar entregado', icono: 'checkmark-done' },
+};
+
+export const ESTADOS_PEDIDO_ACTIVOS = ['pendiente', 'preparando', 'listo'];
+
+// Límites de un pedido.
+export const MAX_CANTIDAD_PLATO = 20;
+export const MAX_LINEAS_PEDIDO = 30;
+export const MAX_NOTA_PLATO = 120;

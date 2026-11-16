@@ -12,6 +12,12 @@ const VARIANTES = {
   activa: { fondo: colores.libreFondo, borde: colores.libreFondo, texto: colores.libre },
   inactiva: { fondo: colores.superficieTenue, borde: colores.superficieTenue, texto: colores.textoSuave },
   acento: { fondo: colores.acentoSuave, borde: colores.acentoSuave, texto: colores.acentoTexto },
+  // Pedidos a cocina.
+  pendiente: { fondo: colores.acento, borde: colores.acento, texto: colores.blanco },
+  preparando: { fondo: colores.acentoSuave, borde: colores.acentoSuave, texto: colores.acentoTexto },
+  listo: { fondo: colores.libreFondo, borde: colores.libreFondo, texto: colores.libre },
+  entregado: { fondo: colores.superficieTenue, borde: colores.superficieTenue, texto: colores.textoSuave },
+  cancelado: { fondo: colores.superficie, borde: colores.bordeFuerte, texto: colores.textoTenue },
 };
 
 export default function Insignia({ texto, variante = 'llena' }) {

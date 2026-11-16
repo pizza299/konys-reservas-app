@@ -23,6 +23,11 @@ export function codigoReserva(id) {
   return `KP-${String(id).padStart(4, '0')}`;
 }
 
+/** Número visible del pedido a partir de su id: 12 -> 'P-0012'. */
+export function codigoPedido(id) {
+  return `P-${String(id).padStart(4, '0')}`;
+}
+
 /** 'Juan Pérez' -> 'Juan' */
 export function primerNombre(nombre) {
   return String(nombre || '').trim().split(/\s+/)[0] || '';

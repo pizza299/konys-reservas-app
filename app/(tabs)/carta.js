@@ -1,5 +1,6 @@
-// Carta digital (RF-07): platos por categoría, en modo lectura.
-import { useMemo, useState } from 'react';
+// Carta digital (RF-07): platos por categoría. Desde el detalle de cada plato
+// el cliente lo agrega a su pedido y lo envía a la cocina (pantalla "pedido").
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -11,14 +12,15 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import PlatoItem from '../../components/PlatoItem';
-import Foto from '../../components/ui/Foto';
-import HojaModal from '../../components/ui/HojaModal';
+import DetallePlato from '../../components/DetallePlato';
 import { AvisoError, Cargando, ErrorEstado, Vacio } from '../../components/ui/Estados';
 import { useDatos } from '../../hooks/useDatos';
+import { usePedido } from '../../context/Pedido';
 import { obtenerPlatos } from '../../services/platos';
-import { colores, radios } from '../../constants/colors';
+import { colores, radios, sombraFuerte } from '../../constants/colors';
 import { CATEGORIAS } from '../../constants/config';
 import { formatearPrecio, pluralizar, porcentajeDescuento } from '../../utils/formato';
 import { completarFilas } from '../../utils/cuadricula';
@@ -27,11 +29,25 @@ const PROMOS = { valor: 'promos', etiqueta: 'Promos', icono: 'pricetag-outline' 
 
 export default function Carta() {
   const { width } = useWindowDimensions();
+  const router = useRouter();
+  const pedido = usePedido();
   const [categoria, setCategoria] = useState('pizzas');
   const [detalle, setDetalle] = useState(null);
+  const [aviso, setAviso] = useState(null);
+  const temporizadorAviso = useRef(null);
   const { datos, error, cargando, refrescando, recargar } = useDatos(() =>
     obtenerPlatos({ soloDisponibles: true }),
   );
+
+  useEffect(() => () => clearTimeout(temporizadorAviso.current), []);
+
+  const agregarAlPedido = (cantidad, nota) => {
+    pedido.agregar(detalle, cantidad, nota);
+    setDetalle(null);
+    setAviso('¡Agregado!');
+    clearTimeout(temporizadorAviso.current);
+    temporizadorAviso.current = setTimeout(() => setAviso(null), 2500);
+  };
 
   // "Promos" agrupa los platos con descuento; solo aparece si hay alguno.
   const enPromocion = useMemo(() => (datos || []).filter((p) => porcentajeDescuento(p) > 0), [datos]);
@@ -44,7 +60,8 @@ export default function Carta() {
   const infoCategoria = categorias.find((c) => c.valor === categoria) || CATEGORIAS[0];
   const iconoDe = (plato) => CATEGORIAS.find((c) => c.valor === plato.categoria)?.icono || 'restaurant-outline';
   const columnas = width >= 700 ? 3 : 2;
-  const descuentoDetalle = detalle ? porcentajeDescuento(detalle) : 0;
+  const etiquetaCategoria = (plato) => CATEGORIAS.find((c) => c.valor === plato?.categoria)?.etiqueta;
+  const hayPedido = pedido.cantidadTotal > 0;
 
   return (
     <SafeAreaView style={styles.pantalla} edges={['top']}>
@@ -99,7 +116,7 @@ export default function Carta() {
               keyExtractor={(p) => String(p.id)}
               numColumns={columnas}
               columnWrapperStyle={styles.columnas}
-              contentContainerStyle={styles.listaContenido}
+              contentContainerStyle={[styles.listaContenido, hayPedido && styles.listaConPedido]}
               refreshControl={<RefreshControl refreshing={refrescando} onRefresh={recargar} />}
               ListHeaderComponent={
                 <View style={styles.listaEncabezado}>
@@ -113,7 +130,12 @@ export default function Carta() {
               renderItem={({ item }) => (
                 <View style={styles.celda}>
                   {item.relleno ? null : (
-                    <PlatoItem plato={item} icono={iconoDe(item)} onVerDetalle={() => setDetalle(item)} />
+                    <PlatoItem
+                      plato={item}
+                      icono={iconoDe(item)}
+                      enPedido={pedido.cantidadDe(item.id)}
+                      onVerDetalle={() => setDetalle(item)}
+                    />
                   )}
                 </View>
               )}
@@ -129,32 +151,35 @@ export default function Carta() {
         </View>
       </View>
 
-      <HojaModal visible={Boolean(detalle)} titulo={detalle?.nombre || ''} onCerrar={() => setDetalle(null)}>
-        {detalle ? (
-          <View style={styles.detalle}>
-            <Foto uri={detalle.foto_url} icono={iconoDe(detalle)} estilo={styles.detalleFoto} tamanoIcono={48} />
-            <View style={styles.detallePrecios}>
-              <Text style={styles.detallePrecio}>{formatearPrecio(detalle.precio)}</Text>
-              {descuentoDetalle ? (
-                <>
-                  <Text style={styles.detallePrecioAnterior}>{formatearPrecio(detalle.precio_anterior)}</Text>
-                  <View style={styles.detalleDescuento}>
-                    <Text style={styles.detalleDescuentoTexto}>-{descuentoDetalle}%</Text>
-                  </View>
-                </>
-              ) : null}
+      {hayPedido ? (
+        <View style={styles.barraPedidoContenedor} pointerEvents="box-none">
+          <Pressable
+            onPress={() => router.push('/pedido')}
+            style={({ pressed }) => [styles.barraPedido, pressed && styles.presionada]}
+            accessibilityRole="button"
+            accessibilityLabel={`Ver mi pedido: ${pluralizar(pedido.cantidadTotal, 'producto', 'productos')}, ${formatearPrecio(pedido.total)}`}
+          >
+            <View style={styles.barraPedidoConteo}>
+              <Text style={styles.barraPedidoConteoTexto}>{pedido.cantidadTotal}</Text>
             </View>
-            {descuentoDetalle ? (
-              <Text style={styles.detalleAhorro}>
-                Ahorras {formatearPrecio(detalle.precio_anterior - detalle.precio)}
-              </Text>
-            ) : null}
-            <Text style={styles.detalleDescripcion}>
-              {detalle.descripcion || 'Pregunta a nuestro equipo por los ingredientes de este plato.'}
+            <Text style={styles.barraPedidoTexto} numberOfLines={1}>
+              {aviso || 'Ver mi pedido'}
             </Text>
-          </View>
-        ) : null}
-      </HojaModal>
+            <Text style={styles.barraPedidoTotal}>{formatearPrecio(pedido.total)}</Text>
+            <Ionicons name="chevron-forward" size={18} color={colores.blanco} />
+          </Pressable>
+        </View>
+      ) : null}
+
+      <DetallePlato
+        key={detalle?.id ?? 'cerrado'}
+        plato={detalle}
+        icono={detalle ? iconoDe(detalle) : undefined}
+        categoria={etiquetaCategoria(detalle)}
+        enPedido={detalle ? pedido.cantidadDe(detalle.id) : 0}
+        onAgregar={agregarAlPedido}
+        onCerrar={() => setDetalle(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -261,52 +286,56 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colores.textoSuave,
   },
-  detalle: {
-    gap: 12,
+  listaConPedido: {
+    paddingBottom: 96,
   },
-  detalleFoto: {
-    width: '72%',
-    maxWidth: 320,
-    aspectRatio: 1,
-    alignSelf: 'center',
-    borderRadius: radios.lg,
+  presionada: {
+    opacity: 0.85,
   },
-  detallePrecios: {
+  barraPedidoContenedor: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  barraPedido: {
+    width: '100%',
+    maxWidth: 480,
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
+    minHeight: 56,
+    paddingLeft: 10,
+    paddingRight: 14,
+    borderRadius: radios.pildora,
+    backgroundColor: colores.primario,
+    ...sombraFuerte,
   },
-  detallePrecio: {
-    fontSize: 22,
+  barraPedidoConteo: {
+    minWidth: 36,
+    height: 36,
+    paddingHorizontal: 6,
+    borderRadius: 18,
+    backgroundColor: colores.acento,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  barraPedidoConteoTexto: {
+    fontSize: 15,
     fontWeight: '900',
     color: colores.primario,
   },
-  detallePrecioAnterior: {
+  barraPedidoTexto: {
+    flex: 1,
     fontSize: 15,
-    color: colores.textoTenue,
-    textDecorationLine: 'line-through',
-  },
-  detalleDescuento: {
-    backgroundColor: colores.acento,
-    borderRadius: radios.pildora,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-  },
-  detalleDescuentoTexto: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
     color: colores.blanco,
   },
-  detalleAhorro: {
-    marginTop: -6,
-    fontSize: 13,
-    fontWeight: '600',
-    color: colores.acentoTexto,
-  },
-  detalleDescripcion: {
+  barraPedidoTotal: {
     fontSize: 15,
-    lineHeight: 22,
-    color: colores.textoSuave,
+    fontWeight: '900',
+    color: colores.blanco,
   },
 });
